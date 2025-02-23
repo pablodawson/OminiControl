@@ -4,7 +4,117 @@ import numpy as np
 from torch.utils.data import Dataset
 import torchvision.transforms as T
 import random
+from typing import Tuple, Optional
+import os
+from torch.utils.data import DataLoader
 
+
+class HMDataset(Dataset):
+    def __init__(
+        self,
+        dataroot_path: str = "data/hm",
+        condition_size: int = 512,
+        target_size: int = 512,
+        phase: str = "train",
+        condition_type: str = "subject",
+        drop_text_prob: float = 0.1,
+        drop_image_prob: float = 0.0,
+        data_list: Optional[str] = "train_pairs.txt",
+        return_pil_image: bool = False,
+        aspect_ratio: float = 1.5,
+        prompt_type: str = "generic",
+    ):
+        self.condition_size = condition_size
+        self.target_size = target_size
+        self.dataroot = dataroot_path
+        self.aspect_ratio = aspect_ratio
+
+        self.condition_type = condition_type
+        self.drop_text_prob = drop_text_prob
+        self.drop_image_prob = drop_image_prob
+        self.return_pil_image = return_pil_image
+
+        self.phase = phase
+        
+        self.to_tensor = T.ToTensor()
+
+        im_names = []
+        c_names = []
+        dataroot_names = []
+        prompts = []
+
+        filename = os.path.join(dataroot_path, data_list)
+        
+        with open(filename, "r") as f:
+            for line in f.readlines():
+                c_name, im_name = line.strip().split()
+                im_names.append(im_name)
+                c_names.append(c_name)
+                dataroot_names.append(dataroot_path)
+                     
+        self.im_names = im_names
+        self.c_names = c_names
+        self.dataroot_names = dataroot_names
+        self.prompts = prompts
+
+        self.prompt_type = prompt_type
+
+    def __len__(self):
+        return len(self.im_names)
+    
+    def create_prompt(self, image_prompt, cloth_prompt, prompt_type):
+        if prompt_type == "generic":
+            options = [
+                f"{image_prompt} Wearing it.",
+                f"{image_prompt}, is wearing it.",
+                f"Wearing it, {image_prompt}"
+            ]
+        elif prompt_type == "specific":
+            options = [
+                f"{image_prompt} Wearing a {cloth_prompt}.",
+                f"{image_prompt}, is wearing a {cloth_prompt}.",
+                f"Wearing a {cloth_prompt}, {image_prompt}"
+            ]
+        return random.choice(options)
+
+    def __getitem__(self, idx):
+
+        c_name = self.c_names[idx]
+        im_name = self.im_names[idx]
+
+        target_image = Image.open(
+            os.path.join(self.dataroot, self.phase, "image", im_name)
+        ).resize((self.target_size, int(self.target_size * self.aspect_ratio)))
+
+        condition_img = Image.open(
+            os.path.join(self.dataroot, self.phase, "cloth", c_name)
+        ).resize((self.condition_size, int(self.target_size * self.aspect_ratio)))
+
+        image_prompt = open(os.path.join(self.dataroot, self.phase, "image", im_name + ".txt")).read()
+        cloth_prompt = open(os.path.join(self.dataroot, self.phase, "cloth", c_name + ".txt")).read()
+        
+        # Get the description
+        description = self.create_prompt(image_prompt, cloth_prompt, self.prompt_type)
+
+        # Randomly drop text or image
+        drop_text = random.random() < self.drop_text_prob
+        drop_image = random.random() < self.drop_image_prob
+        if drop_text:
+            description = ""
+        if drop_image:
+            condition_img = Image.new(
+                "RGB", self.condition_size, (0, 0, 0)
+            )
+
+        return {
+            "image": self.to_tensor(target_image),
+            "condition": self.to_tensor(condition_img),
+            "condition_type": self.condition_type,
+            "description": description,
+            # 16 is the downscale factor of the image
+            "position_delta": np.array([0, -self.condition_size // 16]),
+            **({"pil_image": target_image} if self.return_pil_image else {}),
+        }
 
 class Subject200KDataset(Dataset):
     def __init__(
@@ -308,3 +418,9 @@ class CartoonDataset(Dataset):
             # 16 is the downscale factor of the image
             "position_delta": np.array([0, -16]),
         }
+
+if __name__ == "__main__":
+    dataset = HMDataset("/workspace1/pdawson/tryon-scraping/dataset2")
+    loader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
+    for data in loader:
+        print(data["description"])

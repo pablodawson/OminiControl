@@ -17,6 +17,7 @@ condition_dict = {
     "fill": 9,
     "sr": 10,
     "cartoon": 11,
+    "tryon": 12,
 }
 
 
@@ -61,7 +62,7 @@ class Condition(object):
             edges = cv2.Canny(img, 100, 200)
             edges = Image.fromarray(edges).convert("RGB")
             return edges
-        elif condition_type == "subject":
+        elif condition_type == "subject" or condition_type == "tryon":
             return raw_img
         elif condition_type == "coloring":
             return raw_img.convert("L").convert("RGB")
@@ -100,6 +101,7 @@ class Condition(object):
             "depth",
             "canny",
             "subject",
+            "tryon",
             "coloring",
             "deblurring",
             "depth_pred",
@@ -112,7 +114,7 @@ class Condition(object):
             raise NotImplementedError(
                 f"Condition type {self.condition_type} not implemented"
             )
-        if self.position_delta is None and self.condition_type == "subject":
+        if self.position_delta is None and (self.condition_type == "subject" or self.condition_type == "tryon"):
             self.position_delta = [0, -self.condition.size[0] // 16]
         if self.position_delta is not None:
             ids[:, 1] += self.position_delta[0]

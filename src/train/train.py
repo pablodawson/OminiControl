@@ -10,7 +10,8 @@ from datasets import load_dataset
 from .data import (
     ImageConditionDataset,
     Subject200KDataset,
-    CartoonDataset
+    CartoonDataset, 
+    HMDataset
 )
 from .model import OminiModel
 from .callbacks import TrainingCallback
@@ -35,15 +36,12 @@ def get_config():
 def init_wandb(wandb_config, run_name):
     import wandb
 
-    try:
-        assert os.environ.get("WANDB_API_KEY") is not None
-        wandb.init(
-            project=wandb_config["project"],
-            name=run_name,
-            config={},
-        )
-    except Exception as e:
-        print("Failed to initialize WanDB:", e)
+    #assert os.environ.get("WANDB_API_KEY") is not None
+    wandb.init(
+        project=wandb_config["project"],
+        name=run_name,
+        config={},
+    )
 
 
 def main():
@@ -123,8 +121,21 @@ def main():
             drop_text_prob=training_config["dataset"]["drop_text_prob"],
             drop_image_prob=training_config["dataset"]["drop_image_prob"],
         )
+    elif training_config["dataset"]["type"] == "tryon":
+        dataset = HMDataset(
+            training_config["dataset"]["root"],
+            training_config["dataset"]["condition_size"],
+            training_config["dataset"]["target_size"],
+            "train",
+            training_config["dataset"]["type"],
+            training_config["dataset"]["drop_text_prob"],
+            training_config["dataset"]["drop_image_prob"],
+            training_config["dataset"]["data_list"],
+        )
     else:
         raise NotImplementedError
+
+    print(training_config)
 
     print("Dataset length:", len(dataset))
     train_loader = DataLoader(

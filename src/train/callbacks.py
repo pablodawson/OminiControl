@@ -99,6 +99,8 @@ class TrainingCallback(L.Callback):
         # TODO: change this two variables to parameters
         condition_size = trainer.training_config["dataset"]["condition_size"]
         target_size = trainer.training_config["dataset"]["target_size"]
+        target_height = target_size * trainer.training_config["dataset"]["target_aspect_ratio"]
+        condition_height = condition_size * trainer.training_config["dataset"]["target_aspect_ratio"]
 
         generator = torch.Generator(device=pl_module.device)
         generator.manual_seed(42)
@@ -120,6 +122,42 @@ class TrainingCallback(L.Callback):
                     ),
                 ]
             )
+        elif condition_type == "tryon":
+            print(condition_type)
+            test_list.extend(
+                    [
+                        (
+                            Image.open("/workspace1/pdawson/tryon-scraping/dataset2/train/cloth/dd2046a98255670d6aa2fbad704d1f029132791f.jpg"),
+                            [0, -32],
+                            "A women over a white background. Wearing a blue dress-shirt",
+                        ),
+                        (
+                            Image.open("/workspace1/pdawson/tryon-scraping/dataset2/test/cloth/2b7e317cdd3efc6cf132364eb1a16cfc04e205a0.jpg"),
+                            [0, -32],
+                            "A man over a white background. Wearing black jeans",
+                        ),
+                        (
+                            Image.open("/workspace1/pdawson/tryon-scraping/dataset2/test/cloth/d1731ae01d13c2e51a30a3f0db5b7d83fd5d2601.jpg"),
+                            [0, -32],
+                            "A women over a white background. Wearing a white v-neck sweater",
+                        ),
+                        (
+                            Image.open("/workspace1/pdawson/tryon-scraping/dataset2/test/cloth/11985de34958ee1ea437cb4b745bd6608c0e8c36.jpg"),
+                            [0, -32],
+                            "A man on the beach. Wearing a white hoodie.",
+                        ),
+                         (
+                            Image.open("/workspace1/pdawson/tryon-scraping/dataset2/test/cloth/40da32ac999133aa2bd93c82f93df71a26b72a1c.jpg"),
+                            [0, -32],
+                            "A man on the beach. Wearing a black shirt.",
+                        ),
+                        (
+                            Image.open("/workspace1/pdawson/tryon-scraping/dataset2/test/cloth/0a56420acff8885a8ea5bc6871ff6cab18d3b56f.jpg"),
+                            [0, -32],
+                            "A man over a white background. Wearing a puffer jacket.",
+                        )
+                    ]
+                )
         elif condition_type == "canny":
             condition_img = Image.open("assets/vase_hq.jpg").resize(
                 (condition_size, condition_size)
@@ -205,7 +243,7 @@ class TrainingCallback(L.Callback):
             condition = Condition(
                 condition_type=condition_type,
                 condition=condition_img.resize(
-                    (condition_size, condition_size)
+                    (condition_size, condition_height)
                 ).convert("RGB"),
                 position_delta=position_delta,
             )
@@ -213,7 +251,7 @@ class TrainingCallback(L.Callback):
                 pl_module.flux_pipe,
                 prompt=prompt,
                 conditions=[condition],
-                height=target_size,
+                height=target_height,
                 width=target_size,
                 generator=generator,
                 model_config=pl_module.model_config,
@@ -221,4 +259,7 @@ class TrainingCallback(L.Callback):
             )
             res.images[0].save(
                 os.path.join(save_path, f"{file_name}_{condition_type}_{i}.jpg")
+            )
+            condition_img.save(
+                os.path.join(save_path, f"{file_name}_{condition_type}_{i}_condition.jpg")
             )
