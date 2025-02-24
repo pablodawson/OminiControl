@@ -36,25 +36,38 @@ def init_pipeline():
     pipe = pipe.to("cuda")
     pipe.load_lora_weights(
         "Yuanshi/OminiControl",
-        weight_name="omini/subject_512.safetensors",
-        adapter_name="subject",
+        weight_name="/workspace1/pdawson/OminiControl/runs/20250223-211749/ckpt/15000/pytorch_lora_weights.safetensors",
+        adapter_name="tryon",
     )
 
 
-def process_image_and_text(image, text):
-    # center crop image
-    w, h, min_size = image.size[0], image.size[1], min(image.size)
-    image = image.crop(
-        (
-            (w - min_size) // 2,
-            (h - min_size) // 2,
-            (w + min_size) // 2,
-            (h + min_size) // 2,
-        )
-    )
-    image = image.resize((512, 512))
+def process_image_and_text(image, text, target_width=512, condition_scale=1.0, aspect_ratio=1.5):
+    # Calculate target height based on aspect ratio
+    target_height = int(target_width / aspect_ratio)
+    
+    # Get current dimensions
+    w, h = image.size
+    
+    # Calculate dimensions to maintain aspect ratio with padding
+    if w/h > aspect_ratio:
+        # Image is wider than target ratio
+        new_h = int(w / aspect_ratio)
+        padding = (new_h - h) // 2
+        padded = Image.new('RGB', (w, new_h), (255, 255, 255))
+        padded.paste(image, (0, padding))
+        image = padded
+    else:
+        # Image is taller than target ratio
+        new_w = int(h * aspect_ratio)
+        padding = (new_w - w) // 2
+        padded = Image.new('RGB', (new_w, h), (255, 255, 255))
+        padded.paste(image, (padding, 0))
+        image = padded
+    
+    # Crop and resize
+    image = image.resize((target_width, target_height))
 
-    condition = Condition("subject", image, position_delta=(0, 32))
+    condition = Condition("subject", image, position_delta=(0, target_width//16))
 
     if pipe is None:
         init_pipeline()
@@ -64,8 +77,9 @@ def process_image_and_text(image, text):
         prompt=text.strip(),
         conditions=[condition],
         num_inference_steps=8,
-        height=512,
-        width=512,
+        height=target_height,
+        condition_scale=condition_scale,
+        width=target_width,
     ).images[0]
 
     return result_img
@@ -102,6 +116,8 @@ demo = gr.Interface(
     inputs=[
         gr.Image(type="pil"),
         gr.Textbox(lines=2),
+        gr.Slider(0.5, 2.0, 0.1, default=1.0, label="Condition Scale"),
+        gr.Slider(512, 1024, 64, default=512, label="Target Width"),
     ],
     outputs=gr.Image(type="pil"),
     title="OminiControl / Subject driven generation",

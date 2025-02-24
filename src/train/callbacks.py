@@ -26,7 +26,7 @@ class TrainingCallback(L.Callback):
 
         self.wandb_config = training_config.get("wandb", None)
         self.use_wandb = (
-            wandb is not None and os.environ.get("WANDB_API_KEY") is not None
+            wandb is not None
         )
 
         self.total_steps = 0
@@ -73,11 +73,11 @@ class TrainingCallback(L.Callback):
             )
 
         # Generate and save a sample image at specified intervals
-        if self.total_steps % self.sample_interval == 0:
+        if self.total_steps % self.sample_interval == 1:
             print(
                 f"Epoch: {trainer.current_epoch}, Steps: {self.total_steps} - Generating a sample"
             )
-            self.generate_a_sample(
+            images, conditions = self.generate_a_sample(
                 trainer,
                 pl_module,
                 f"{self.save_path}/{self.run_name}/output",
@@ -86,6 +86,13 @@ class TrainingCallback(L.Callback):
                     0
                 ],  # Use the condition type from the current batch
             )
+            if self.use_wandb:
+                samples_list = [wandb.Image(image, caption=f"Sample {i}") for i, (image, _) in enumerate(zip(images, conditions))]
+                conditions_list = [wandb.Image(condition, caption=f"Condition {i}") for i, (_, condition) in enumerate(zip(images, conditions))]
+                wandb.log({
+                    "samples": samples_list,
+                    "conditions": conditions_list,
+                })
 
     @torch.no_grad()
     def generate_a_sample(
@@ -99,8 +106,8 @@ class TrainingCallback(L.Callback):
         # TODO: change this two variables to parameters
         condition_size = trainer.training_config["dataset"]["condition_size"]
         target_size = trainer.training_config["dataset"]["target_size"]
-        target_height = target_size * trainer.training_config["dataset"]["target_aspect_ratio"]
-        condition_height = condition_size * trainer.training_config["dataset"]["target_aspect_ratio"]
+        target_height = int(target_size * trainer.training_config["dataset"]["target_aspect_ratio"])
+        condition_height = int(condition_size * trainer.training_config["dataset"]["target_aspect_ratio"])
 
         generator = torch.Generator(device=pl_module.device)
         generator.manual_seed(42)
@@ -129,32 +136,32 @@ class TrainingCallback(L.Callback):
                         (
                             Image.open("/workspace1/pdawson/tryon-scraping/dataset2/train/cloth/dd2046a98255670d6aa2fbad704d1f029132791f.jpg"),
                             [0, -32],
-                            "A women over a white background. Wearing a blue dress-shirt",
+                            "A women over a white background, wearing it",
                         ),
                         (
                             Image.open("/workspace1/pdawson/tryon-scraping/dataset2/test/cloth/2b7e317cdd3efc6cf132364eb1a16cfc04e205a0.jpg"),
                             [0, -32],
-                            "A man over a white background. Wearing black jeans",
+                            "A man over a white background. He is wearing it.",
                         ),
                         (
                             Image.open("/workspace1/pdawson/tryon-scraping/dataset2/test/cloth/d1731ae01d13c2e51a30a3f0db5b7d83fd5d2601.jpg"),
                             [0, -32],
-                            "A women over a white background. Wearing a white v-neck sweater",
+                            "Wearing it, a women over a white background.",
                         ),
                         (
                             Image.open("/workspace1/pdawson/tryon-scraping/dataset2/test/cloth/11985de34958ee1ea437cb4b745bd6608c0e8c36.jpg"),
                             [0, -32],
-                            "A man on the beach. Wearing a white hoodie.",
+                            "A man on the beach. Wearing it.",
                         ),
                          (
                             Image.open("/workspace1/pdawson/tryon-scraping/dataset2/test/cloth/40da32ac999133aa2bd93c82f93df71a26b72a1c.jpg"),
                             [0, -32],
-                            "A man on the beach. Wearing a black shirt.",
+                            "A man on the beach. Wearing it.",
                         ),
                         (
                             Image.open("/workspace1/pdawson/tryon-scraping/dataset2/test/cloth/0a56420acff8885a8ea5bc6871ff6cab18d3b56f.jpg"),
                             [0, -32],
-                            "A man over a white background. Wearing a puffer jacket.",
+                            "A man wearing it, over a white background.",
                         )
                     ]
                 )
@@ -239,6 +246,10 @@ class TrainingCallback(L.Callback):
 
         if not os.path.exists(save_path):
             os.makedirs(save_path)
+        
+        images = []
+        conditions = []
+
         for i, (condition_img, position_delta, prompt) in enumerate(test_list):
             condition = Condition(
                 condition_type=condition_type,
@@ -263,3 +274,8 @@ class TrainingCallback(L.Callback):
             condition_img.save(
                 os.path.join(save_path, f"{file_name}_{condition_type}_{i}_condition.jpg")
             )
+
+            images.append(res.images[0])
+            conditions.append(condition_img)
+        
+        return images, conditions
