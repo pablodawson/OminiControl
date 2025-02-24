@@ -31,43 +31,47 @@ def init_pipeline():
         )
     else:
         pipe = FluxPipeline.from_pretrained(
-            "black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16
+            "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
         )
     pipe = pipe.to("cuda")
     pipe.load_lora_weights(
-        "Yuanshi/OminiControl",
-        weight_name="/workspace1/pdawson/OminiControl/runs/20250223-211749/ckpt/15000/pytorch_lora_weights.safetensors",
+        "/workspace1/pdawson/OminiControl/runs/20250223-211749/ckpt/15000/pytorch_lora_weights.safetensors",
         adapter_name="tryon",
     )
 
 
-def process_image_and_text(image, text, target_width=512, condition_scale=1.0, aspect_ratio=1.5):
+def process_image_and_text(image, text, target_width=512, condition_scale=1.0, steps=40):
+    
+    aspect_ratio = 1.5
     # Calculate target height based on aspect ratio
-    target_height = int(target_width / aspect_ratio)
+    target_height = int(target_width * aspect_ratio)
     
     # Get current dimensions
     w, h = image.size
     
     # Calculate dimensions to maintain aspect ratio with padding
-    if w/h > aspect_ratio:
+    if h/w < aspect_ratio:
         # Image is wider than target ratio
-        new_h = int(w / aspect_ratio)
+        new_h = int(w * aspect_ratio)
         padding = (new_h - h) // 2
         padded = Image.new('RGB', (w, new_h), (255, 255, 255))
         padded.paste(image, (0, padding))
         image = padded
     else:
         # Image is taller than target ratio
-        new_w = int(h * aspect_ratio)
+        new_w = int(h / aspect_ratio)
         padding = (new_w - w) // 2
         padded = Image.new('RGB', (new_w, h), (255, 255, 255))
         padded.paste(image, (padding, 0))
         image = padded
     
+    target_width = target_width // 16 * 16
+    target_height = target_height // 16 * 16
+    
     # Crop and resize
     image = image.resize((target_width, target_height))
 
-    condition = Condition("subject", image, position_delta=(0, target_width//16))
+    condition = Condition("tryon", image, position_delta=(0, target_width//16))
 
     if pipe is None:
         init_pipeline()
@@ -76,7 +80,7 @@ def process_image_and_text(image, text, target_width=512, condition_scale=1.0, a
         pipe,
         prompt=text.strip(),
         conditions=[condition],
-        num_inference_steps=8,
+        num_inference_steps=steps,
         height=target_height,
         condition_scale=condition_scale,
         width=target_width,
@@ -116,8 +120,9 @@ demo = gr.Interface(
     inputs=[
         gr.Image(type="pil"),
         gr.Textbox(lines=2),
-        gr.Slider(0.5, 2.0, 1.0, 0.1, label="Condition Scale"),
         gr.Slider(512, 1024, 512, 64, label="Target Width"),
+        gr.Slider(0.5, 2.0, 1.0, 0.1, label="Condition Scale"),
+        gr.Slider(20, 80, 40, 5, label="Steps"),
     ],
     outputs=gr.Image(type="pil"),
     title="OminiControl / Subject driven generation",
