@@ -11,7 +11,6 @@ from flux.generate import seed_everything, generate
 pipe = None
 use_int8 = False
 
-
 def get_gpu_memory():
     return torch.cuda.get_device_properties(0).total_memory / 1024**3
 
@@ -31,17 +30,23 @@ def init_pipeline():
         )
     else:
         pipe = FluxPipeline.from_pretrained(
-            "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
+            "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16, #cache_dir ="/workspace/models"
         )
     pipe = pipe.to("cuda")
     pipe.load_lora_weights(
-        "/workspace1/pdawson/OminiControl/runs/20250223-211749/ckpt/15000/pytorch_lora_weights.safetensors",
+        "pablodawson/hm-omini",
         adapter_name="tryon",
     )
 
 
-def process_image_and_text(image, text, target_width=512, condition_scale=1.0, steps=40):
+def process_image_and_text(image, text, target_width=512, condition_scale=1.0, steps=40, num_outputs=1):
     
+    if image == None:
+        return None, "Sube una imagen para continuar"
+
+    if text == "":
+        return None, "Escribe un texto para continuar"
+
     aspect_ratio = 1.5
     # Calculate target height based on aspect ratio
     target_height = int(target_width * aspect_ratio)
@@ -76,43 +81,24 @@ def process_image_and_text(image, text, target_width=512, condition_scale=1.0, s
     if pipe is None:
         init_pipeline()
 
-    result_img = generate(
-        pipe,
-        prompt=text.strip(),
-        conditions=[condition],
-        num_inference_steps=steps,
-        height=target_height,
-        condition_scale=condition_scale,
-        width=target_width,
-    ).images[0]
+    results = []
+    
+    for i in range(num_outputs):
+        seed_everything(i*10)
+        
+        result_img = generate(
+            pipe,
+            prompt=text.strip(),
+            conditions=[condition],
+            num_inference_steps=steps,
+            height=target_height,
+            condition_scale=condition_scale,
+            width=target_width,
+        ).images[0]
 
-    return result_img
+        results.append(result_img)
 
-
-def get_samples():
-    sample_list = [
-        {
-            "image": "../assets/oranges.jpg",
-            "text": "A very close up view of this item. It is placed on a wooden table. The background is a dark room, the TV is on, and the screen is showing a cooking show. With text on the screen that reads 'Omini Control!'",
-        },
-        {
-            "image": "../assets/penguin.jpg",
-            "text": "On Christmas evening, on a crowded sidewalk, this item sits on the road, covered in snow and wearing a Christmas hat, holding a sign that reads 'Omini Control!'",
-        },
-        {
-            "image": "../assets/rc_car.jpg",
-            "text": "A film style shot. On the moon, this item drives across the moon surface. The background is that Earth looms large in the foreground.",
-        },
-        {
-            "image": "../assets/clock.jpg",
-            "text": "In a Bauhaus style room, this item is placed on a shiny glass table, with a vase of flowers next to it. In the afternoon sun, the shadows of the blinds are cast on the wall.",
-        },
-        {
-            "image": "../assets/tshirt.jpg",
-            "text": "On the beach, a lady sits under a beach umbrella with 'Omini' written on it. She's wearing this shirt and has a big smile on her face, with her surfboard hehind her.",
-        },
-    ]
-    return [[Image.open(sample["image"]), sample["text"]] for sample in sample_list]
+    return results, "Listo"
 
 
 demo = gr.Interface(
@@ -120,17 +106,18 @@ demo = gr.Interface(
     inputs=[
         gr.Image(type="pil"),
         gr.Textbox(lines=2),
-        gr.Slider(512, 1024, 512, 64, label="Target Width"),
-        gr.Slider(0.5, 2.0, 1.0, 0.1, label="Condition Scale"),
-        gr.Slider(20, 80, 40, 5, label="Steps"),
+        gr.Slider(512, 1024, 512, 64, label="Width (ancho de la imagen)"),
+        gr.Slider(0.5, 2.0, 1.0, 0.1, label="Condition Scale (que tanto ocupar la imagen de referencia)"),
+        gr.Slider(20, 80, 40, 5, label="Steps (mas steps = mas tiempo pero mejor calidad)"),
+        gr.Slider(1, 5, 1, 1, label="Cantidad de imagenes a generar")
     ],
-    outputs=gr.Image(type="pil"),
-    title="OminiControl / Subject driven generation",
-    examples=get_samples(),
+    outputs=[gr.Gallery(), gr.Label()],
+    title="KaysV2"
 )
 
 if __name__ == "__main__":
     init_pipeline()
     demo.launch(
-        debug=True,
+        debug=False,
+        #share=True
     )
