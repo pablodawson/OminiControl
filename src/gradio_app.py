@@ -46,9 +46,11 @@ def process_image_and_text(image, text, target_width=512, condition_scale=1.0, s
 
     if text == "":
         return None, "Escribe un texto para continuar"
-
+    
+    condition_width = 512
     aspect_ratio = 1.5
     # Calculate target height based on aspect ratio
+    condition_height = int(condition_width * aspect_ratio)
     target_height = int(target_width * aspect_ratio)
     
     # Get current dimensions
@@ -74,9 +76,9 @@ def process_image_and_text(image, text, target_width=512, condition_scale=1.0, s
     target_height = target_height // 16 * 16
     
     # Crop and resize
-    image = image.resize((target_width, target_height))
+    image = image.resize((condition_width, condition_height))
 
-    condition = Condition("tryon", image, position_delta=(0, target_width//16))
+    condition = Condition("tryon", image, position_delta=(0, -condition_width//16))
 
     if pipe is None:
         init_pipeline()
