@@ -7,10 +7,10 @@ model:
   latent_lora: false
 
 train:
-  batch_size: 1
+  batch_size: 2
   accumulate_grad_batches: 1
   dataloader_workers: 5
-  save_interval: 1000
+  save_interval: 100
   sample_interval: 100
   max_steps: -1
   gradient_checkpointing: true
@@ -20,7 +20,7 @@ train:
   dataset:
     root: "/workspace1/pdawson/tryon-scraping/dataset2"
     type: "tryon"
-    target_size: 512
+    target_size: 768
     target_aspect_ratio: 1.5
     condition_size: 512
     drop_text_prob: 0.1
@@ -29,6 +29,7 @@ train:
   wandb:
     project: "OminiControl - Tryon"
 
+  lora_path: "/workspace1/pdawson/OminiControl/runs/20250223-211749/ckpt/15000/pytorch_lora_weights.safetensors"
   lora_config:
     r: 16
     lora_alpha: 16

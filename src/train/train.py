@@ -149,7 +149,7 @@ def main():
     trainable_model = OminiModel(
         flux_pipe_id=config["flux_path"],
         lora_config=training_config["lora_config"],
-        #lora_path = training_config["lora_path"],
+        lora_path = training_config["lora_path"],
         device=f"cuda",
         dtype=getattr(torch, config["dtype"]),
         optimizer_config=training_config["optimizer"],

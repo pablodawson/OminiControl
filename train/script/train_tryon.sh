@@ -10,4 +10,4 @@ export XFL_CONFIG=./train/config/tryon.yaml
 echo $XFL_CONFIG
 export TOKENIZERS_PARALLELISM=true
 
-CUDA_VISIBLE_DEVICES=5,6 accelerate launch --main_process_port 41353 -m src.train.train
+CUDA_VISIBLE_DEVICES=2 accelerate launch --main_process_port 41353 -m src.train.train
