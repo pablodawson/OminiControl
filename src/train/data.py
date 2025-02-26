@@ -66,7 +66,7 @@ class HMDataset(Dataset):
         if prompt_type == "generic":
             options = [
                 f"{image_prompt} Wearing it.",
-                f"{image_prompt}, is wearing it.",
+                f"{image_prompt} The person is wearing it.",
                 f"Wearing it, {image_prompt}"
             ]
         elif prompt_type == "specific":
@@ -91,10 +91,11 @@ class HMDataset(Dataset):
         ).resize((self.condition_size, int(self.target_size * self.aspect_ratio)))
 
         image_prompt = open(os.path.join(self.dataroot, self.phase, "image", im_name + ".txt")).read()
-        cloth_prompt = open(os.path.join(self.dataroot, self.phase, "cloth", c_name + ".txt")).read()
+        cloth_prompt = open(os.path.join(self.dataroot, self.phase, "cloth", c_name + ".txt"), errors='ignore').read()
         
         # Get the description
         description = self.create_prompt(image_prompt, cloth_prompt, self.prompt_type)
+        #description = image_prompt
 
         # Randomly drop text or image
         drop_text = random.random() < self.drop_text_prob
@@ -420,7 +421,8 @@ class CartoonDataset(Dataset):
         }
 
 if __name__ == "__main__":
-    dataset = HMDataset("/workspace1/pdawson/tryon-scraping/dataset2")
+    dataset = HMDataset("/workspace1/pdawson/tryon-scraping/dataset_zara")
     loader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
     for data in loader:
         print(data["description"])
+        break

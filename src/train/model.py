@@ -48,11 +48,10 @@ class OminiModel(L.LightningModule):
     def init_lora(self, lora_path: str, lora_config: dict):
         assert lora_path or lora_config
         if lora_path:
-            self.flux_pipe.load_lora_weights(lora_path)
+            self.flux_pipe.load_lora_weights(lora_path, adapter_name="default")
             lora_layers = filter(
                 lambda p: p.requires_grad, self.transformer.parameters()
             )
-            #raise NotImplementedError
         else:
             self.transformer.add_adapter(LoraConfig(**lora_config))
             # TODO: Check if this is correct (p.requires_grad)

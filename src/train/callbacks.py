@@ -129,7 +129,7 @@ class TrainingCallback(L.Callback):
                     ),
                 ]
             )
-        elif condition_type == "tryon":
+        elif condition_type == "tryon_old":
             print(condition_type)
             test_list.extend(
                     [
@@ -165,6 +165,39 @@ class TrainingCallback(L.Callback):
                         )
                     ]
                 )
+        elif condition_type == "tryon":
+            print(condition_type)
+            test_list.extend(
+                [
+                (
+                    Image.open("/workspace1/pdawson/tryon-scraping/dataset_zara/train/cloth/13579510850-e2.jpg"),
+                    [0, -32],
+                    "Wearing it, close-up view of a person's legs in denim jeans, standing against a plain background.",
+                ),
+                (
+                    Image.open("/workspace1/pdawson/tryon-scraping/dataset_zara/train/cloth/13575410800-e1.jpg"),
+                    [0, -32],
+                    "Wearing it, close-up view of a person's legs in denim jeans, standing against a plain background",
+                ),
+                (
+                    Image.open("/workspace1/pdawson/tryon-scraping/dataset_zara/train/cloth/13511510709-e2.jpg"),
+                    [0, -32],
+                    "Wearing it, close-up view of a person's legs in denim jeans, standing against a plain background",
+                ),
+                (
+                    Image.open("/workspace1/pdawson/tryon-scraping/dataset_zara/train/cloth/13307510800-e2.jpg"),
+                    [0, -32],
+                    "Wearing it, close-up view of a person's legs in denim jeans, standing against a plain background",
+                ),
+                (
+                    Image.open("/workspace1/pdawson/tryon-scraping/dataset_zara/train/cloth/13039510800-e2.jpg"),
+                    [0, -32],
+                    "Wearing it, close-up view of a person's legs in denim jeans, standing against a plain background",
+                )
+                ]
+            )
+                        
+
         elif condition_type == "canny":
             condition_img = Image.open("assets/vase_hq.jpg").resize(
                 (condition_size, condition_size)
