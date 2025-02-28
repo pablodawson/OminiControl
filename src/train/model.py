@@ -8,7 +8,7 @@ import prodigyopt
 from ..flux.transformer import tranformer_forward
 from ..flux.condition import Condition
 from ..flux.pipeline_tools import encode_images, prepare_text_input
-
+import re
 
 class OminiModel(L.LightningModule):
     def __init__(
@@ -21,11 +21,15 @@ class OminiModel(L.LightningModule):
         model_config: dict = {},
         optimizer_config: dict = None,
         gradient_checkpointing: bool = False,
+        train_base_model: bool = False,
+        target_modules: str = "",
     ):
         # Initialize the LightningModule
         super().__init__()
         self.model_config = model_config
         self.optimizer_config = optimizer_config
+        self.train_base_model = train_base_model
+        self.target_modules = target_modules
 
         # Load the Flux pipeline
         self.flux_pipe: FluxPipeline = (
@@ -41,7 +45,8 @@ class OminiModel(L.LightningModule):
         self.flux_pipe.vae.requires_grad_(False).eval()
 
         # Initialize LoRA layers
-        self.lora_layers = self.init_lora(lora_path, lora_config)
+        if not train_base_model:
+            self.lora_layers = self.init_lora(lora_path, lora_config)
 
         self.to(device).to(dtype)
 
@@ -73,7 +78,16 @@ class OminiModel(L.LightningModule):
         opt_config = self.optimizer_config
 
         # Set the trainable parameters
-        self.trainable_params = self.lora_layers
+        self.trainable_params = []
+
+        if self.train_base_model:
+            for name, param in self.transformer.named_parameters():
+                if re.match(self.target_modules, name):
+                    param.requires_grad_(True)
+                    self.trainable_params.append(param)
+                    print(f"Training {name}")
+        else:
+            self.trainable_params = self.lora_layers
 
         # Unfreeze trainable parameters
         for p in self.trainable_params:

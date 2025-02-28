@@ -135,7 +135,6 @@ def main():
     else:
         raise NotImplementedError
 
-    print(training_config)
 
     print("Dataset length:", len(dataset))
     train_loader = DataLoader(
@@ -149,12 +148,14 @@ def main():
     trainable_model = OminiModel(
         flux_pipe_id=config["flux_path"],
         lora_config=training_config["lora_config"],
-        lora_path = training_config["lora_path"],
+        lora_path = training_config.get("lora_path", None),
         device=f"cuda",
         dtype=getattr(torch, config["dtype"]),
         optimizer_config=training_config["optimizer"],
         model_config=config.get("model", {}),
         gradient_checkpointing=training_config.get("gradient_checkpointing", False),
+        train_base_model=training_config.get("train_base_model", False),
+        target_modules=training_config.get("target_modules", ""),
     )
 
     # Callbacks for logging and saving checkpoints
